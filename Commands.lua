@@ -186,24 +186,24 @@ local function categoryListFromArgument(argument)
 end
 
 local function summarizeCategory(category, cache)
-    local missingPlayers = {}
+    local failingPlayers = {}
     local optedOutCount = 0
-    local missingTotal = 0
+    local failureTotal = 0
 
     for playerName, row in pairs(cache) do
-        local status = row.statuses and row.statuses[category] or "unknown"
-        if status == "missing" then
-            missingTotal = missingTotal + 1
+        local failureKind = GERT:GetReportFailureKind(row, category)
+        if failureKind then
+            failureTotal = failureTotal + 1
             if GERT:IsOptedOut(playerName, category) then
                 optedOutCount = optedOutCount + 1
             else
-                missingPlayers[#missingPlayers + 1] = playerName
+                failingPlayers[#failingPlayers + 1] = playerName
             end
         end
     end
 
-    table.sort(missingPlayers)
-    return missingPlayers, optedOutCount, missingTotal
+    table.sort(failingPlayers)
+    return failingPlayers, optedOutCount, failureTotal
 end
 
 function GERT:HandleReportCommand(argument)
@@ -222,12 +222,12 @@ function GERT:HandleReportCommand(argument)
     local categories = categoryListFromArgument(argument)
 
     for _, category in ipairs(categories) do
-        local missingPlayers, optedOutCount, missingTotal = summarizeCategory(category, cache)
+        local failingPlayers, optedOutCount, failureTotal = summarizeCategory(category, cache)
         local label = self.categoryLabels[category] or category
-        local summary = string.format("%s missing: %d players, %d opted out from mentions", label, missingTotal, optedOutCount)
+        local summary = string.format("%s missing/expiring <4m: %d players, %d opted out from mentions", label, failureTotal, optedOutCount)
 
-        if #missingPlayers > 0 then
-            summary = summary .. " (" .. table.concat(missingPlayers, ", ") .. ")"
+        if #failingPlayers > 0 then
+            summary = summary .. " (" .. table.concat(failingPlayers, ", ") .. ")"
         end
 
         if channel == "LOCAL" then

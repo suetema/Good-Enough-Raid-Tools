@@ -1,0 +1,84 @@
+name: CurseForge Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      ADDON_NAME: GoodEnoughRaidTools
+      CURSEFORGE_API_BASE: https://wow.curseforge.com/api
+      CURSEFORGE_RELEASE_TYPE: release
+      CURSEFORGE_CHANGELOG_TYPE: markdown
+      CURSEFORGE_GAME_VERSION_NAMES: >-
+        ["2.5.5"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build addon archive
+        run: bash scripts/build-release.sh
+
+      - name: Upload to CurseForge
+        env:
+          CURSEFORGE_API_TOKEN: ${{ secrets.CURSEFORGE_API_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ secrets.CURSEFORGE_PROJECT_ID }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CURSEFORGE_API_TOKEN:-}" ]]; then
+            echo "Missing CURSEFORGE_API_TOKEN secret" >&2
+            exit 1
+          fi
+
+          if [[ -z "${CURSEFORGE_PROJECT_ID:-}" ]]; then
+            echo "Missing CURSEFORGE_PROJECT_ID secret" >&2
+            exit 1
+          fi
+
+          zip_path="dist/${ADDON_NAME}.zip"
+          if [[ ! -f "$zip_path" ]]; then
+            echo "Missing built archive: $zip_path" >&2
+            exit 1
+          fi
+
+          changelog_file="$(mktemp)"
+          if [[ -f CHANGELOG.md ]]; then
+            cp CHANGELOG.md "$changelog_file"
+          else
+            {
+              echo "Release ${GITHUB_REF_NAME}"
+              echo
+              echo "Automated CurseForge upload."
+            } > "$changelog_file"
+          fi
+
+          metadata_file="$(mktemp)"
+          jq -n \
+            --arg displayName "${ADDON_NAME} ${GITHUB_REF_NAME}" \
+            --arg changelog "$(cat "$changelog_file")" \
+            --arg changelogType "${CURSEFORGE_CHANGELOG_TYPE}" \
+            --arg releaseType "${CURSEFORGE_RELEASE_TYPE}" \
+            --argjson gameVersionNames "${CURSEFORGE_GAME_VERSION_NAMES}" \
+            '{
+              displayName: $displayName,
+              changelog: $changelog,
+              changelogType: $changelogType,
+              releaseType: $releaseType,
+              gameVersionNames: $gameVersionNames
+            }' > "$metadata_file"
+
+          curl -fsSL \
+            -H "X-Api-Token: ${CURSEFORGE_API_TOKEN}" \
+            -F "metadata=<${metadata_file};type=application/json" \
+            -F "file=@${zip_path};type=application/zip" \
+            "${CURSEFORGE_API_BASE}/projects/${CURSEFORGE_PROJECT_ID}/upload-file"

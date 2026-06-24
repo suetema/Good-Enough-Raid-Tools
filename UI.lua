@@ -150,7 +150,7 @@ function GERT:RefreshMatrixFromCache()
         row.name:SetText(playerName)
 
         for _, category in ipairs(self.categories) do
-            local status = (data.statuses and data.statuses[category]) or "unknown"
+            local status = self:GetDisplayStatusForCategory(data, category)
             local color = self.statusColors[status] or self.statusColors.unknown
             row.cells[category]:SetText(self.statusTexts[status] or "?")
             row.cells[category]:SetTextColor(color[1], color[2], color[3])

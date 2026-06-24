@@ -30,6 +30,50 @@ end
 
 local trackedBuffs = {}
 local trackedBuffNames = {}
+local EXPIRING_THRESHOLD_SECONDS = 240
+
+local function setMaxRemaining(map, category, remainingSeconds)
+    if not remainingSeconds then
+        return
+    end
+
+    local current = map[category]
+    if not current or remainingSeconds > current then
+        map[category] = remainingSeconds
+    end
+end
+
+local function normalizeRemainingSeconds(duration, expirationTime, now)
+    if type(duration) ~= "number" or duration <= 0 then
+        return nil
+    end
+
+    if type(expirationTime) ~= "number" or expirationTime <= 0 then
+        return nil
+    end
+
+    now = now or GetTime()
+
+    local remainingSeconds
+    if expirationTime <= duration then
+        remainingSeconds = expirationTime
+    else
+        remainingSeconds = expirationTime - now
+        if remainingSeconds <= 0 and expirationTime <= (duration + 1) then
+            remainingSeconds = expirationTime
+        end
+    end
+
+    if type(remainingSeconds) ~= "number" or remainingSeconds <= 0 then
+        return nil
+    end
+
+    if remainingSeconds > (duration + 1) then
+        return nil
+    end
+
+    return remainingSeconds
+end
 
 local function registerTrackedNames(spellIds)
     for _, spellId in ipairs(spellIds) do
@@ -152,9 +196,10 @@ end
 
 function GERT:CollectBuffs(unit)
     local buffs = {}
+    local now = GetTime()
 
     for index = 1, 40 do
-        local name, _, _, _, _, _, _, _, _, spellId = UnitBuff(unit, index)
+        local name, _, _, _, duration, expirationTime, _, _, _, spellId = UnitBuff(unit, index)
         if not name then
             break
         end
@@ -166,6 +211,9 @@ function GERT:CollectBuffs(unit)
         buffs[#buffs + 1] = {
             name = name,
             spellId = spellId,
+            duration = duration,
+            expirationTime = expirationTime,
+            remainingSeconds = normalizeRemainingSeconds(duration, expirationTime, now),
         }
     end
 
@@ -174,14 +222,18 @@ end
 
 function GERT:EvaluateBuffCategories(unit)
     if not UnitExists(unit) then
-        return self:CreateUnknownStatusMap(), {}
+        return self:CreateUnknownStatusMap(), {}, {}, {}
     end
 
     local statuses = self:GetInitialStatusesForUnit(unit)
     local details = {}
+    local expires = {}
     local sawBattleElixir = false
     local sawGuardianElixir = false
     local sawFlask = false
+    local battleElixirRemaining
+    local guardianElixirRemaining
+    local flaskRemaining
 
     for _, buff in ipairs(self:CollectBuffs(unit)) do
         local spellId = buff.spellId
@@ -190,22 +242,34 @@ function GERT:EvaluateBuffCategories(unit)
         if tracked then
             statuses[tracked.category] = mergeStatus(statuses[tracked.category], tracked.status)
             details[tracked.category] = buff.name
+            if tracked.category ~= "flask" and tracked.category ~= "elixir" then
+                setMaxRemaining(expires, tracked.category, buff.remainingSeconds)
+            end
         end
 
         if flaskSet[spellId] then
             sawFlask = true
             details.flask = buff.name
             details.elixir = buff.name
+            if buff.remainingSeconds then
+                flaskRemaining = math.max(flaskRemaining or 0, buff.remainingSeconds)
+            end
         end
 
         if battleElixirSet[spellId] then
             sawBattleElixir = true
             details.elixir = buff.name
+            if buff.remainingSeconds then
+                battleElixirRemaining = math.max(battleElixirRemaining or 0, buff.remainingSeconds)
+            end
         end
 
         if guardianElixirSet[spellId] then
             sawGuardianElixir = true
             details.elixir = buff.name
+            if buff.remainingSeconds then
+                guardianElixirRemaining = math.max(guardianElixirRemaining or 0, buff.remainingSeconds)
+            end
         end
 
         if blessingSet[spellId] then
@@ -222,15 +286,29 @@ function GERT:EvaluateBuffCategories(unit)
     if sawFlask then
         statuses.flask = "present"
         statuses.elixir = "present"
+        if flaskRemaining then
+            expires.flask = flaskRemaining
+            expires.elixir = flaskRemaining
+        end
     elseif sawBattleElixir and sawGuardianElixir then
         statuses.elixir = "present"
         statuses.flask = "missing"
+        if battleElixirRemaining and guardianElixirRemaining then
+            expires.elixir = math.min(battleElixirRemaining, guardianElixirRemaining)
+        end
     else
         statuses.flask = "missing"
         statuses.elixir = "missing"
     end
 
-    return statuses, details
+    local expiring = {}
+    for category, remainingSeconds in pairs(expires) do
+        if remainingSeconds > 0 and remainingSeconds < EXPIRING_THRESHOLD_SECONDS then
+            expiring[category] = true
+        end
+    end
+
+    return statuses, details, expires, expiring
 end
 
 function GERT:RaidHasClass(classFile)
@@ -251,12 +329,14 @@ function GERT:ScanRoster(scanSource)
             local displayName = self:GetPlayerDisplayName(unit)
             if displayName then
                 local _, classFile = UnitClass(unit)
-                local statuses, details = self:EvaluateBuffCategories(unit)
+                local statuses, details, expires, expiring = self:EvaluateBuffCategories(unit)
                 results[displayName] = {
                     class = select(1, UnitClass(unit)),
                     classFile = classFile,
                     statuses = statuses,
                     details = details,
+                    expires = expires,
+                    expiring = expiring,
                     scanSource = scanSource or "manual",
                 }
             end

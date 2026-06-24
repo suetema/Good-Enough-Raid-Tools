@@ -33,12 +33,14 @@ GERT.categoryLabels = {
 
 GERT.statusColors = {
     present = { 0.15, 0.8, 0.25 },
+    expiring = { 0.95, 0.82, 0.2 },
     missing = { 0.85, 0.2, 0.2 },
     unknown = { 0.55, 0.55, 0.55 },
 }
 
 GERT.statusTexts = {
     present = "OK",
+    expiring = "WARN",
     missing = "MISS",
     unknown = "?",
 }
@@ -76,10 +78,31 @@ function GERT:DeepCopyScanCache(cache)
             classFile = unitData.classFile,
             statuses = shallowCopy(unitData.statuses or {}),
             details = shallowCopy(unitData.details or {}),
+            expires = shallowCopy(unitData.expires or {}),
+            expiring = shallowCopy(unitData.expiring or {}),
             scanSource = unitData.scanSource,
         }
     end
     return copy
+end
+
+function GERT:GetDisplayStatusForCategory(row, category)
+    local status = row and row.statuses and row.statuses[category] or "unknown"
+    if status == "present" and row and row.expiring and row.expiring[category] then
+        return "expiring"
+    end
+    return status
+end
+
+function GERT:GetReportFailureKind(row, category)
+    local status = row and row.statuses and row.statuses[category] or "unknown"
+    if status == "missing" then
+        return "missing"
+    end
+    if status == "present" and row and row.expiring and row.expiring[category] then
+        return "expiring"
+    end
+    return nil
 end
 
 function GERT:EnsureDB()
@@ -91,7 +114,7 @@ function GERT:EnsureDB()
     db.window = db.window or shallowCopy(self.windowDefaults)
     db.optouts = db.optouts or {}
     db.lastScan = db.lastScan or {}
-    db.version = db.version or "1.0.0"
+    db.version = db.version or "1.0.1"
 
     self.db = db
 end
