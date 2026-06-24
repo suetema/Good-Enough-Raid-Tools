@@ -10,7 +10,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     env:
       ADDON_NAME: GoodEnoughRaidTools
@@ -26,6 +26,12 @@ jobs:
 
       - name: Build addon archive
         run: bash scripts/build-release.sh
+
+      - name: Publish GitHub release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/GoodEnoughRaidTools.zip
+          generate_release_notes: true
 
       - name: Upload to CurseForge
         env:
