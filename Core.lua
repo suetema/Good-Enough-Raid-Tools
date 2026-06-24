@@ -114,7 +114,7 @@ function GERT:EnsureDB()
     db.window = db.window or shallowCopy(self.windowDefaults)
     db.optouts = db.optouts or {}
     db.lastScan = db.lastScan or {}
-    db.version = db.version or "1.0.2"
+    db.version = db.version or "1.0.3"
 
     self.db = db
 end
@@ -207,8 +207,8 @@ end
 
 function GERT:OnInitialize()
     self:EnsureDB()
-    self:CreateWindow()
     self:RegisterSlashCommands()
+    self:CreateWindow()
     self:RefreshMatrixFromCache()
 end
 

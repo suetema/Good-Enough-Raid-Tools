@@ -4,6 +4,7 @@ local GERT = ns.GERT
 local ROW_HEIGHT = 18
 local NAME_WIDTH = 110
 local COLUMN_WIDTH = 62
+local BACKDROP_TEMPLATE = BackdropTemplateMixin and "BackdropTemplate" or nil
 
 local function sortNames(cache)
     local names = {}
@@ -27,17 +28,20 @@ function GERT:CreateWindow()
         return
     end
 
-    local frame = CreateFrame("Frame", "GoodEnoughRaidToolsWindow", UIParent)
+    local frame = CreateFrame("Frame", "GoodEnoughRaidToolsWindow", UIParent, BACKDROP_TEMPLATE)
     frame:SetSize(NAME_WIDTH + (COLUMN_WIDTH * #self.categories) + 30, 540)
-    frame:SetBackdrop({
-        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
-        tile = true,
-        tileSize = 16,
-        edgeSize = 12,
-        insets = { left = 3, right = 3, top = 3, bottom = 3 },
-    })
-    frame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
+
+    if frame.SetBackdrop then
+        frame:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true,
+            tileSize = 16,
+            edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        frame:SetBackdropColor(0.05, 0.05, 0.05, 0.9)
+    end
     frame:SetMovable(true)
     frame:EnableMouse(true)
     frame:RegisterForDrag("LeftButton")
