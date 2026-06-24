@@ -129,7 +129,27 @@ function GERT:CanPublicReport()
         return false
     end
 
-    return UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")
+    if UnitIsGroupLeader and UnitIsGroupLeader("player") then
+        return true
+    end
+
+    if UnitIsGroupAssistant and UnitIsGroupAssistant("player") then
+        return true
+    end
+
+    local playerName = UnitName("player")
+    if not playerName then
+        return false
+    end
+
+    for index = 1, GetNumRaidMembers() do
+        local name, rank = GetRaidRosterInfo(index)
+        if name and self:NormalizeName(name) == self:NormalizeName(playerName) then
+            return rank == 1 or rank == 2
+        end
+    end
+
+    return false
 end
 
 function GERT:GetReportChannel()

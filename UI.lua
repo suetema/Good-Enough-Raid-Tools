@@ -27,8 +27,8 @@ function GERT:CreateWindow()
         return
     end
 
-    local frame = CreateFrame("Frame", "GoodEnoughRaidToolsWindow", UIParent, "BackdropTemplate")
-    frame:SetSize(NAME_WIDTH + (COLUMN_WIDTH * #self.categories) + 30, 320)
+    local frame = CreateFrame("Frame", "GoodEnoughRaidToolsWindow", UIParent)
+    frame:SetSize(NAME_WIDTH + (COLUMN_WIDTH * #self.categories) + 30, 540)
     frame:SetBackdrop({
         bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
         edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
@@ -76,15 +76,10 @@ function GERT:CreateWindow()
         GERT:HandleReportCommand("all")
     end)
 
-    local scrollFrame = CreateFrame("ScrollFrame", "GoodEnoughRaidToolsScrollFrame", frame, "FauxScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 10, -60)
-    scrollFrame:SetPoint("BOTTOMRIGHT", -28, 10)
-
     local content = CreateFrame("Frame", nil, frame)
     content:SetPoint("TOPLEFT", 10, -60)
     content:SetSize(NAME_WIDTH + (COLUMN_WIDTH * #self.categories), 1)
     frame.content = content
-    frame.scrollFrame = scrollFrame
 
     local headerName = createCell(content, NAME_WIDTH, "LEFT")
     headerName:SetPoint("TOPLEFT", 0, 0)

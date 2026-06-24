@@ -49,6 +49,7 @@ Supported categories:
 
 ## Verification
 
+- Run `node scripts/verify.js` for local repo checks.
 - Confirm the addon loads under TBC Classic Anniversary with interface `20505`.
 - Confirm `/gert` opens the window and the Scan and Report buttons work.
 - Confirm public reporting is only allowed for raid leaders or assistants.
