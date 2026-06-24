@@ -1,0 +1,12 @@
+## Interface: 20505
+## Interface-TBC: 20505
+## Title: Good Enough Raid Tools
+## Notes: Raid buff and consumable status matrix for TBC Classic Anniversary.
+## Author: <Good Enough>
+## Version: 1.0.0
+## SavedVariables: GoodEnoughRaidToolsDB
+
+Core.lua
+Buffs.lua
+UI.lua
+Commands.lua
