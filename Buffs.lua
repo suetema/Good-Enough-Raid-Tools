@@ -103,13 +103,6 @@ addSpell(trackedBuffs, {
 }, "weaponbuff", "present")
 
 addSpell(trackedBuffs, {
-    27141, 27143, 27127, 48469, 48470, 48467, 25392,
-    26991, 32999, 27149, 27150, 27152, 27153, 27151,
-    25528, 26968, 26969, 25291, 25898, 25899, 25916,
-    27125, 27126, 25570, 25574, 26991, 17007,
-}, "raidbuff", "present")
-
-addSpell(trackedBuffs, {
     19740, 25782, 25894, 25895, 27149, 27150, 27151,
     27152, 27153, 25898, 25899, 25916,
 }, "blessing", "present")
@@ -141,12 +134,36 @@ local weaponBuffSpellIds = {
     8027, 8033, 16339, 58804, 58801,
 }
 
-local raidBuffSpellIds = {
-    27141, 27143, 27127, 48469, 48470, 48467, 25392,
-    26991, 32999, 27149, 27150, 27152, 27153, 27151,
-    25528, 26968, 26969, 25291, 25898, 25899, 25916,
-    27125, 27126, 25570, 25574, 17007,
+local raidBuffRules = {
+    {
+        key = "fortitude",
+        label = "Fortitude",
+        providerClass = "PRIEST",
+        spellIds = {
+            1243, 1244, 1245, 2791, 10937, 10938, 25389,
+            21562, 21564, 25392,
+        },
+    },
+    {
+        key = "intellect",
+        label = "Intellect",
+        providerClass = "MAGE",
+        spellIds = {
+            1459, 1460, 1461, 10156, 10157, 27126,
+            23028, 27127,
+        },
+    },
+    {
+        key = "mark",
+        label = "Mark",
+        providerClass = "DRUID",
+        spellIds = {
+            1126, 5232, 6756, 5234, 8907, 9884,
+            9885, 26990, 21849, 21850, 26991,
+        },
+    },
 }
+local raidBuffRuleBySpellId = {}
 
 local function toSet(spellIds)
     local result = {}
@@ -168,7 +185,13 @@ registerTrackedNames(battleElixirSpellIds)
 registerTrackedNames(guardianElixirSpellIds)
 registerTrackedNames(weaponBuffSpellIds)
 registerTrackedNames(blessingSpellIds)
-registerTrackedNames(raidBuffSpellIds)
+
+for _, rule in ipairs(raidBuffRules) do
+    registerTrackedNames(rule.spellIds)
+    for _, spellId in ipairs(rule.spellIds) do
+        raidBuffRuleBySpellId[spellId] = rule
+    end
+end
 
 for spellId in pairs(trackedBuffs) do
     local spellName = GetSpellInfo(spellId)
@@ -183,8 +206,16 @@ end
 
 function GERT:GetInitialStatusesForUnit(unit)
     local statuses = self:CreateUnknownStatusMap()
+    local hasAnyRaidBuffProvider = false
 
-    statuses.raidbuff = "missing"
+    for _, rule in ipairs(raidBuffRules) do
+        if self:RaidHasClass(rule.providerClass) then
+            hasAnyRaidBuffProvider = true
+            break
+        end
+    end
+
+    statuses.raidbuff = hasAnyRaidBuffProvider and "missing" or "unknown"
     statuses.foodbuff = "missing"
     statuses.flask = "missing"
     statuses.elixir = "missing"
@@ -234,10 +265,22 @@ function GERT:EvaluateBuffCategories(unit)
     local battleElixirRemaining
     local guardianElixirRemaining
     local flaskRemaining
+    local availableRaidBuffs = {}
+    local presentRaidBuffs = {}
+    local raidBuffRemainingByKey = {}
+    local presentRaidBuffLabels = {}
+    local missingRaidBuffLabels = {}
+
+    for _, rule in ipairs(raidBuffRules) do
+        if self:RaidHasClass(rule.providerClass) then
+            availableRaidBuffs[rule.key] = rule
+        end
+    end
 
     for _, buff in ipairs(self:CollectBuffs(unit)) do
         local spellId = buff.spellId
         local tracked = spellId and trackedBuffs[spellId] or nil
+        local raidBuffRule = spellId and raidBuffRuleBySpellId[spellId] or nil
 
         if tracked then
             statuses[tracked.category] = mergeStatus(statuses[tracked.category], tracked.status)
@@ -245,6 +288,11 @@ function GERT:EvaluateBuffCategories(unit)
             if tracked.category ~= "flask" and tracked.category ~= "elixir" then
                 setMaxRemaining(expires, tracked.category, buff.remainingSeconds)
             end
+        end
+
+        if raidBuffRule and availableRaidBuffs[raidBuffRule.key] then
+            presentRaidBuffs[raidBuffRule.key] = true
+            setMaxRemaining(raidBuffRemainingByKey, raidBuffRule.key, buff.remainingSeconds)
         end
 
         if flaskSet[spellId] then
@@ -299,6 +347,35 @@ function GERT:EvaluateBuffCategories(unit)
     else
         statuses.flask = "missing"
         statuses.elixir = "missing"
+    end
+
+    for _, rule in ipairs(raidBuffRules) do
+        if availableRaidBuffs[rule.key] then
+            if presentRaidBuffs[rule.key] then
+                presentRaidBuffLabels[#presentRaidBuffLabels + 1] = rule.label
+            else
+                missingRaidBuffLabels[#missingRaidBuffLabels + 1] = rule.label
+            end
+        end
+    end
+
+    if #presentRaidBuffLabels > 0 and #missingRaidBuffLabels == 0 then
+        statuses.raidbuff = "present"
+        details.raidbuff = table.concat(presentRaidBuffLabels, ", ")
+
+        for _, rule in ipairs(raidBuffRules) do
+            if availableRaidBuffs[rule.key] then
+                local remainingSeconds = raidBuffRemainingByKey[rule.key]
+                if remainingSeconds then
+                    if not expires.raidbuff or remainingSeconds < expires.raidbuff then
+                        expires.raidbuff = remainingSeconds
+                    end
+                end
+            end
+        end
+    elseif #missingRaidBuffLabels > 0 then
+        statuses.raidbuff = "missing"
+        details.raidbuff = table.concat(missingRaidBuffLabels, ", ")
     end
 
     local expiring = {}

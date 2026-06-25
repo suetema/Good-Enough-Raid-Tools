@@ -52,12 +52,14 @@ assert(commands.includes("missing/expiring <4m"), "Report wording does not menti
 assert(buffs.includes("EXPIRING_THRESHOLD_SECONDS = 240"), "Buff expiry threshold is missing or changed.");
 assert(buffs.includes("expires = expires"), "Scan results do not include expires metadata.");
 assert(buffs.includes("expiring = expiring"), "Scan results do not include expiring metadata.");
+assert(buffs.includes("local raidBuffRules"), "Provider-aware raid buff rules are missing.");
 assert(core.includes("GoodEnoughRaidToolsDB"), "SavedVariables name mismatch.");
 assert(core.includes('expiring = "WARN"'), "WARN matrix state is missing.");
 assert(readme.includes("/gert scan"), "README is missing command documentation.");
 assert(readme.includes("gert unsub all"), "README is missing privacy whisper documentation.");
 assert(readme.includes("under 4 minutes"), "README is missing expiry behavior documentation.");
 assert(readme.includes("CurseForge Distribution"), "README is missing CurseForge distribution documentation.");
+assert(readme.includes("provider-aware"), "README is missing provider-aware raid buff documentation.");
 assert(readme.includes("MIT License"), "README is missing license documentation.");
 assert(readme.includes("Limitations"), "README is missing limitations.");
 assert(fs.existsSync(workflowPath), "CurseForge GitHub Actions workflow is missing.");

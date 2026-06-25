@@ -32,7 +32,7 @@ What you still need to do outside the repo:
    - `CURSEFORGE_PROJECT_ID`
 5. Verify `CURSEFORGE_GAME_VERSION_NAMES` in the workflow matches the exact CurseForge game version names before the first upload. The current workflow is set to:
    - `2.5.5`
-6. Push a tag like `v1.0.3` to trigger the upload workflow.
+6. Push a tag like `v1.0.4` to trigger the upload workflow.
 
 Local package build:
 
@@ -40,7 +40,7 @@ Local package build:
 
 Important:
 
-- Do not use GitHub's auto-generated source zip for manual addon installs. It extracts to a repository-style folder name such as `Good-Enough-Raid-Tools-1.0.3`, which WoW will not load as the addon folder.
+- Do not use GitHub's auto-generated source zip for manual addon installs. It extracts to a repository-style folder name such as `Good-Enough-Raid-Tools-1.0.4`, which WoW will not load as the addon folder.
 - Use the packaged addon archive `GoodEnoughRaidTools.zip` instead. It extracts to `GoodEnoughRaidTools/`, which matches `GoodEnoughRaidTools.toc`.
 
 ## Commands
@@ -60,6 +60,12 @@ Supported categories:
 - `weaponbuff`
 - `raidbuff`
 - `blessing`
+
+`raidbuff` is provider-aware. It only expects the broad raid buffs your current raid can actually supply. In the current implementation that means:
+
+- Fortitude only if a Priest is present
+- Intellect only if a Mage is present
+- Mark only if a Druid is present
 
 ## Privacy Behavior
 

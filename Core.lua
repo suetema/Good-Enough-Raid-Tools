@@ -114,7 +114,7 @@ function GERT:EnsureDB()
     db.window = db.window or shallowCopy(self.windowDefaults)
     db.optouts = db.optouts or {}
     db.lastScan = db.lastScan or {}
-    db.version = db.version or "1.0.3"
+    db.version = db.version or "1.0.4"
 
     self.db = db
 end
